@@ -1,0 +1,65 @@
+---
+title: "Practical Machine Learning Project"
+author: "Jeremy Lim"
+date: "20 February 2015"
+output: html_document
+---
+
+##Executive Summary
+
+Data used for a paper on "Qualitative Activity Recognition of Weight Lifting Exercises", which attempted to assess how well a subject did a Weight Lifting Exercise, was used to develop a machine learning algorithm to predict the values of a testing set of data with 20 observations. The first set of data, the training data, was split into a training set and a validation set. A model was developed with the training set and cross-validated with the validation set, producing a 99.2% accuracy. All 20 observations were subsequently correctly predicted.
+
+##Data Cleaning
+
+The caret and randomForest libraries were used for this exercise. The data was then downloaded from the Coursera website and processed, including a few identified NA strings. The identifier to predict for this dataset was the 'Classe' variable.
+
+```{r}
+library(caret)
+library(randomForest)
+#download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv","pml-training.csv")
+#download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv","pml-testing.csv")
+training <- read.csv("pml-training.csv",na.strings=c("NA"," ", "","$DIV/0"))
+testing <- read.csv("pml-testing.csv",na.strings=c("NA"," ", "","$DIV/0"))
+```
+
+Many predictors were only available for specific observations (these were when the new_window variable was set as yes). This was a total of 100/160 variables, and each column had no more than 406 observations out of 19622, which meant that it would have been hard to impute the missing values meaningfully. These predictors were thus removed.
+
+Predictors relating to the index of the observation, timestamps and windows of observation were also assessed to be independent of the Classe of exercise.
+
+```{r]}
+training <- training[,(!is.na(training[1,]))]
+training <- training[,c(-1,-3,-4,-5,-6,-7)]
+testing <- testing[,(!is.na(testing[1,]))]
+testing <- testing[,c(-1,-3,-4,-5,-6,-7)]
+```
+
+##Cross-Validation
+
+In order to perform cross-validation, the hold-out method was used. As the dataset is large, a simpler method of cross-validation was tried first. 80% of the training data was used to develop the model, while 20% was held to validate the model.
+
+```{r}
+InTrain <- createDataPartition(training$classe,p=0.8,list=FALSE)
+trainset <- training[InTrain,]
+testset <- training[-InTrain,]
+```
+
+##Model Fitting and Cross-Validation
+
+The model was developed with the random forest method. The Out-of-Bag estimate of error rate was 0.38%. The model was then cross-validated with the validation set. The accuracy was more than 99%, which was deemed high enough to proceed with the final test set.
+
+```{r}
+modelFit <- randomForest(classe ~ .,data=trainset,prox=TRUE)
+confusionMatrix(predict(modelFit,newdata=testset),testset$classe)
+```
+
+##Final Test Set
+
+The model was used to predict the classe of each observation for the actual test set, and this was uploaded for comparison on the Coursera website. All 20 observations had the correct classe predicted.
+
+```{r}
+predict(modelFit,newdata=testing)
+```
+
+##Conclusion
+
+Accuracy of more than 99% can sometimes be a result of overfitting, but the large number of observations for training and validation suggest that this is unlikely to be the case. We can expect that based on the predictors available, the model is highly accurate at predicting the kind of activity that is taking place. However, it might still be difficult to scale such a model to identify any kind of wrong movement for any user during a weight lifting exercise.
